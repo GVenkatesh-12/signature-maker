@@ -214,12 +214,17 @@ async function processImage() {
             })
         });
 
-        if (!result.ok) {
-            const errorData = await result.json();
-            throw new Error(errorData.details || errorData.error || 'Failed to process image');
+        let data;
+        try {
+            data = await result.json();
+        } catch (e) {
+            console.error('Failed to parse response:', e);
+            throw new Error('Invalid response from server');
         }
 
-        const data = await result.json();
+        if (!result.ok) {
+            throw new Error(data.details || data.error || 'Failed to process image');
+        }
         
         if (!data.success) {
             throw new Error(data.details || data.error || 'Failed to process image');
