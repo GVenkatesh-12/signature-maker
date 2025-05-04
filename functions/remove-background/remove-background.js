@@ -15,7 +15,7 @@ exports.handler = async function(event, context) {
         return {
             statusCode: 200,
             headers,
-            body: ''
+            body: JSON.stringify({ success: true })
         };
     }
 
@@ -31,7 +31,9 @@ exports.handler = async function(event, context) {
     }
 
     try {
+        // Check for API key
         if (!process.env.REMOVE_BG_API_KEY) {
+            console.error('REMOVE_BG_API_KEY is not set');
             return {
                 statusCode: 500,
                 headers,
@@ -43,9 +45,24 @@ exports.handler = async function(event, context) {
             };
         }
 
-        const body = JSON.parse(event.body);
-        const imageData = body.imageData;
+        // Parse request body
+        let body;
+        try {
+            body = JSON.parse(event.body);
+        } catch (e) {
+            console.error('Failed to parse request body:', e);
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false,
+                    error: 'Invalid request body',
+                    details: 'Could not parse JSON'
+                })
+            };
+        }
 
+        const imageData = body.imageData;
         if (!imageData) {
             return {
                 statusCode: 400,
@@ -57,6 +74,7 @@ exports.handler = async function(event, context) {
             };
         }
 
+        // Process image
         const formData = new FormData();
         const buffer = Buffer.from(imageData.split(',')[1], 'base64');
         formData.append('image_file', buffer, {
@@ -85,7 +103,7 @@ exports.handler = async function(event, context) {
             })
         };
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error processing image:', error);
         
         // Handle specific error cases
         if (error.response) {

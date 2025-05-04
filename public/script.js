@@ -216,10 +216,16 @@ async function processImage() {
 
         let data;
         try {
-            data = await result.json();
+            const text = await result.text();
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Failed to parse response:', text);
+                throw new Error('Invalid response from server');
+            }
         } catch (e) {
-            console.error('Failed to parse response:', e);
-            throw new Error('Invalid response from server');
+            console.error('Failed to get response text:', e);
+            throw new Error('Failed to get response from server');
         }
 
         if (!result.ok) {
