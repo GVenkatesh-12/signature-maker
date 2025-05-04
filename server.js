@@ -1,11 +1,11 @@
 import express from 'express';
 import multer from 'multer';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import fetch from 'node-fetch';
+import axios from 'axios';
 import FormData from 'form-data';
-import fs from 'fs';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -15,75 +15,46 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(express.json());
+// Enable CORS
+app.use(cors());
+
+// Serve static files
 app.use(express.static('public'));
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
-});
+// Configure multer for memory storage
+const upload = multer({ storage: multer.memoryStorage() });
 
-const upload = multer({ storage: storage });
-
-// Create uploads directory if it doesn't exist
-if (!fs.existsSync('public/uploads')) {
-    fs.mkdirSync('public/uploads', { recursive: true });
-}
-
-// Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Handle image upload and background removal
+// Remove background endpoint
 app.post('/remove-background', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'No image uploaded' });
+            return res.status(400).json({ error: 'No image file provided' });
         }
 
-        if (!process.env.REMOVE_BG_API_KEY) {
-            throw new Error('Remove.bg API key is not configured');
-        }
-
-        const imagePath = req.file.path;
         const formData = new FormData();
+        formData.append('image_file', req.file.buffer, {
+            filename: 'image.png',
+            contentType: 'image/png'
+        });
         formData.append('size', 'auto');
-        formData.append('image_file', fs.createReadStream(imagePath));
 
-        console.log('Sending request to Remove.bg API...');
-        const response = await fetch('https://api.remove.bg/v1.0/removebg', {
-            method: 'POST',
+        const response = await axios.post('https://api.remove.bg/v1.0/removebg', formData, {
             headers: {
-                'X-Api-Key': process.env.REMOVE_BG_API_KEY,
+                ...formData.getHeaders(),
+                'X-Api-Key': process.env.REMOVE_BG_API_KEY
             },
-            body: formData,
+            responseType: 'arraybuffer'
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Remove.bg API error:', errorText);
-            throw new Error(`Remove.bg API error: ${response.status} ${response.statusText}`);
-        }
+        // Convert the response to base64
+        const base64Image = Buffer.from(response.data).toString('base64');
+        const dataUrl = `data:image/png;base64,${base64Image}`;
 
-        const buffer = await response.buffer();
-        const outputPath = path.join('public', 'uploads', `removed_bg_${Date.now()}.png`);
-        fs.writeFileSync(outputPath, buffer);
-
-        res.json({
-            success: true,
-            imageUrl: `/uploads/${path.basename(outputPath)}`
-        });
+        res.json({ success: true, imageUrl: dataUrl });
     } catch (error) {
-        console.error('Server error:', error);
+        console.error('Error:', error);
         res.status(500).json({ 
             error: 'Failed to process image',
             details: error.message 
@@ -91,7 +62,7 @@ app.post('/remove-background', upload.single('image'), async (req, res) => {
     }
 });
 
+// Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
-    console.log('Remove.bg API Key configured:', process.env.REMOVE_BG_API_KEY ? 'Yes' : 'No');
 });

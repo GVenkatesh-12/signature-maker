@@ -2,6 +2,7 @@ let cropper = null;
 let currentImage = null;
 let webcamStream = null;
 let processedImageUrl = null; // Store the original processed image URL
+let originalImageData = null;
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -45,7 +46,13 @@ function handleFileSelect(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            displayImage(e.target.result);
+            originalImage.src = e.target.result;
+            originalImageData = e.target.result;
+            imageContainer.classList.remove('d-none');
+            webcamContainer.classList.add('d-none');
+            if (webcamStream) {
+                stopWebcam();
+            }
         };
         reader.readAsDataURL(file);
     }
@@ -57,6 +64,7 @@ async function startWebcam() {
         webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
         webcam.srcObject = webcamStream;
         webcamContainer.classList.remove('d-none');
+        imageContainer.classList.add('d-none');
     } catch (error) {
         console.error('Error accessing webcam:', error);
         alert('Error accessing webcam. Please make sure you have granted camera permissions.');
@@ -69,8 +77,10 @@ function captureImage() {
     canvas.width = webcam.videoWidth;
     canvas.height = webcam.videoHeight;
     canvas.getContext('2d').drawImage(webcam, 0, 0);
-    const imageUrl = canvas.toDataURL('image/png');
-    displayImage(imageUrl);
+    originalImageData = canvas.toDataURL('image/png');
+    originalImage.src = originalImageData;
+    imageContainer.classList.remove('d-none');
+    webcamContainer.classList.add('d-none');
     stopWebcam();
 }
 
@@ -112,12 +122,12 @@ function displayImage(imageUrl) {
 
 // Open cropper modal
 function openCropper() {
-    if (!currentImage) {
+    if (!originalImageData) {
         alert('Please upload or capture an image first.');
         return;
     }
 
-    cropperImage.src = currentImage;
+    cropperImage.src = originalImageData;
     cropperModal.show();
     
     // Initialize cropper after modal is shown
@@ -128,20 +138,16 @@ function openCropper() {
         
         cropper = new Cropper(cropperImage, {
             aspectRatio: NaN,
-            viewMode: 1,
-            dragMode: 'move',
+            viewMode: 2,
             autoCropArea: 1,
+            responsive: true,
             restore: false,
+            modal: true,
             guides: true,
-            center: true,
-            highlight: false,
+            highlight: true,
             cropBoxMovable: true,
             cropBoxResizable: true,
             toggleDragModeOnDblclick: false,
-            ready: function() {
-                // Enable the crop button once cropper is ready
-                cropConfirmBtn.disabled = false;
-            }
         });
 
         // Remove the event listener to prevent multiple initializations
@@ -158,6 +164,10 @@ function cropImage() {
 
     try {
         const canvas = cropper.getCroppedCanvas({
+            width: cropper.getData().width,
+            height: cropper.getData().height,
+            minWidth: 256,
+            minHeight: 256,
             maxWidth: 4096,
             maxHeight: 4096,
             fillColor: '#fff',
@@ -169,8 +179,8 @@ function cropImage() {
             throw new Error('Failed to get cropped canvas');
         }
 
-        const croppedImageUrl = canvas.toDataURL('image/png');
-        displayImage(croppedImageUrl);
+        originalImageData = canvas.toDataURL('image/png');
+        originalImage.src = originalImageData;
         cropperModal.hide();
         
         // Clean up
@@ -191,7 +201,7 @@ async function processImage() {
         processBtn.textContent = 'Processing...';
 
         const formData = new FormData();
-        const response = await fetch(currentImage);
+        const response = await fetch(originalImageData);
         const blob = await response.blob();
         formData.append('image', blob);
 
@@ -207,7 +217,7 @@ async function processImage() {
         }
         
         if (data.success) {
-            processedImageUrl = data.imageUrl; // Store the original processed image URL
+            processedImageUrl = data.imageUrl; // This is now a base64 data URL
             processedImage.src = data.imageUrl;
             processedImage.classList.remove('d-none');
             adjustmentsContainer.classList.remove('d-none');
@@ -274,9 +284,14 @@ function resetAdjustments() {
 
 // Download processed image
 function downloadImage() {
+    if (!processedImage.src) {
+        alert('No processed image available');
+        return;
+    }
+
     const link = document.createElement('a');
     link.href = processedImage.src; // This will include the current adjustments
-    link.download = 'removed-background.png';
+    link.download = 'signature.png';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
