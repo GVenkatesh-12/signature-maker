@@ -1,69 +1,97 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
+import dotenv from 'dotenv';
 
-// Get the directory name from the current module URL
+// Load environment variables
+dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 const app = express();
 const port = 3000;
 
-// Set up storage for uploaded files
+// Middleware
+app.use(express.json());
+app.use(express.static('public'));
+
+// Configure multer for file upload
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
+    destination: function (req, file, cb) {
+        cb(null, 'public/uploads/');
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
 });
 
 const upload = multer({ storage: storage });
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync('public/uploads')) {
+    fs.mkdirSync('public/uploads', { recursive: true });
+}
 
-// POST route to handle image upload
-app.post('/upload', upload.single('image'), async (req, res) => {
-  try {
-    const imagePath = path.join(__dirname, req.file.path);
-    console.log("Uploaded file path:", imagePath); // Log the file path
-
-    const formData = new FormData();
-    formData.append('size', 'auto');
-    formData.append('image_file', fs.createReadStream(imagePath));
-
-    const response = await fetch('https://api.remove.bg/v1.0/removebg', {
-      method: 'POST',
-      headers: { 'X-Api-Key': 'GhstRCioHnbNrx8jqKxcxoCM' }, // Replace with your actual API key
-      body: formData,
-    });
-
-    if (response.ok) {
-      const buffer = await response.buffer();
-      const outputPath = path.join(__dirname, 'public', 'no-bg.png');
-      fs.writeFileSync(outputPath, buffer);
-      res.send('/signature-no-bg.png');
-    } else {
-      const errorMessage = await response.text();
-      console.log("API Response Error:", errorMessage); // Log the error
-      res.status(500).send(`Failed to remove background: ${errorMessage}`);
-    }
-
-    // Clean up the uploaded image
-    fs.unlinkSync(imagePath);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server error');
-  }
+// Routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
+// Handle image upload and background removal
+app.post('/remove-background', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image uploaded' });
+        }
+
+        if (!process.env.REMOVE_BG_API_KEY) {
+            throw new Error('Remove.bg API key is not configured');
+        }
+
+        const imagePath = req.file.path;
+        const formData = new FormData();
+        formData.append('size', 'auto');
+        formData.append('image_file', fs.createReadStream(imagePath));
+
+        console.log('Sending request to Remove.bg API...');
+        const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+            method: 'POST',
+            headers: {
+                'X-Api-Key': process.env.REMOVE_BG_API_KEY,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Remove.bg API error:', errorText);
+            throw new Error(`Remove.bg API error: ${response.status} ${response.statusText}`);
+        }
+
+        const buffer = await response.buffer();
+        const outputPath = path.join('public', 'uploads', `removed_bg_${Date.now()}.png`);
+        fs.writeFileSync(outputPath, buffer);
+
+        res.json({
+            success: true,
+            imageUrl: `/uploads/${path.basename(outputPath)}`
+        });
+    } catch (error) {
+        console.error('Server error:', error);
+        res.status(500).json({ 
+            error: 'Failed to process image',
+            details: error.message 
+        });
+    }
+});
+
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
+    console.log('Remove.bg API Key configured:', process.env.REMOVE_BG_API_KEY ? 'Yes' : 'No');
 });
