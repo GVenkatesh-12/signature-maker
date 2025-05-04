@@ -204,6 +204,7 @@ async function processImage() {
             throw new Error('No image available to process');
         }
 
+        console.log('Sending request to remove background...');
         const result = await fetch('/.netlify/functions/remove-background', {
             method: 'POST',
             headers: {
@@ -214,9 +215,11 @@ async function processImage() {
             })
         });
 
+        console.log('Received response:', result.status);
         let data;
         try {
             const text = await result.text();
+            console.log('Response text:', text);
             try {
                 data = JSON.parse(text);
             } catch (e) {
@@ -229,13 +232,16 @@ async function processImage() {
         }
 
         if (!result.ok) {
+            console.error('Server error:', data);
             throw new Error(data.details || data.error || 'Failed to process image');
         }
         
         if (!data.success) {
+            console.error('Processing failed:', data);
             throw new Error(data.details || data.error || 'Failed to process image');
         }
         
+        console.log('Processing successful');
         processedImageUrl = data.imageUrl;
         processedImage.src = data.imageUrl;
         processedImage.classList.remove('d-none');

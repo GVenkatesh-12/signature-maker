@@ -2,6 +2,8 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 exports.handler = async function(event, context) {
+    console.log('Function started');
+    
     // Set CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -31,6 +33,7 @@ exports.handler = async function(event, context) {
     }
 
     try {
+        console.log('Checking API key...');
         // Check for API key
         if (!process.env.REMOVE_BG_API_KEY) {
             console.error('REMOVE_BG_API_KEY is not set');
@@ -45,6 +48,7 @@ exports.handler = async function(event, context) {
             };
         }
 
+        console.log('Parsing request body...');
         // Parse request body
         let body;
         try {
@@ -74,6 +78,7 @@ exports.handler = async function(event, context) {
             };
         }
 
+        console.log('Processing image...');
         // Process image
         const formData = new FormData();
         const buffer = Buffer.from(imageData.split(',')[1], 'base64');
@@ -83,6 +88,7 @@ exports.handler = async function(event, context) {
         });
         formData.append('size', 'auto');
 
+        console.log('Sending request to remove.bg...');
         const response = await axios.post('https://api.remove.bg/v1.0/removebg', formData, {
             headers: {
                 ...formData.getHeaders(),
@@ -91,9 +97,11 @@ exports.handler = async function(event, context) {
             responseType: 'arraybuffer'
         });
 
+        console.log('Processing response...');
         const base64Image = Buffer.from(response.data).toString('base64');
         const dataUrl = `data:image/png;base64,${base64Image}`;
 
+        console.log('Returning success response');
         return {
             statusCode: 200,
             headers,
@@ -107,6 +115,7 @@ exports.handler = async function(event, context) {
         
         // Handle specific error cases
         if (error.response) {
+            console.error('API Error:', error.response.data);
             return {
                 statusCode: error.response.status,
                 headers,
