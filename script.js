@@ -200,38 +200,43 @@ async function processImage() {
         processBtn.disabled = true;
         processBtn.textContent = 'Processing...';
 
-        const formData = new FormData();
-        const response = await fetch(originalImageData);
-        const blob = await response.blob();
-        formData.append('image', blob);
+        if (!originalImageData) {
+            throw new Error('No image available to process');
+        }
 
-        const result = await fetch('/remove-background', {
+        const result = await fetch('/.netlify/functions/remove-background', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                imageData: originalImageData
+            })
         });
+
+        if (!result.ok) {
+            const errorData = await result.json();
+            throw new Error(errorData.details || errorData.error || 'Failed to process image');
+        }
 
         const data = await result.json();
         
-        if (!result.ok) {
+        if (!data.success) {
             throw new Error(data.details || data.error || 'Failed to process image');
         }
         
-        if (data.success) {
-            processedImageUrl = data.imageUrl; // This is now a base64 data URL
-            processedImage.src = data.imageUrl;
-            processedImage.classList.remove('d-none');
-            adjustmentsContainer.classList.remove('d-none');
-            
-            // Reset adjustments
-            resetAdjustments();
-            
-            // Remove the tooltip after successful processing
-            const tooltip = document.querySelector('.alert-info');
-            if (tooltip) {
-                tooltip.remove();
-            }
-        } else {
-            throw new Error(data.error || 'Failed to process image');
+        processedImageUrl = data.imageUrl;
+        processedImage.src = data.imageUrl;
+        processedImage.classList.remove('d-none');
+        adjustmentsContainer.classList.remove('d-none');
+        
+        // Reset adjustments
+        resetAdjustments();
+        
+        // Remove the tooltip after successful processing
+        const tooltip = document.querySelector('.alert-info');
+        if (tooltip) {
+            tooltip.remove();
         }
     } catch (error) {
         console.error('Error:', error);
