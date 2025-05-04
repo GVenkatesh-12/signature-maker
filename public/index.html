@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signature Maker</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+    <!-- Include the Cropper.js CSS from the CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/cropperjs@1.5.12/dist/cropper.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --secondary-gradient: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+            --success-gradient: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #4b5563;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+
+        .image-container {
+            width: 100%;
+            max-height: 400px;
+            overflow: hidden;
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 12px;
+        }
+
+        .loading {
+            display: none;
+            font-size: 18px;
+            color: #6366f1;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+
+        .download-button {
+            display: none;
+            margin-top: 20px;
+            font-size: 16px;
+            background: var(--success-gradient);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .preview-container {
+            display: none;
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-container h3 {
+            margin-top: 15px;
+            color: #4b5563;
+            font-size: 1.1em;
+        }
+
+        .image-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .control-group {
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .slider-value {
+            min-width: 40px;
+            text-align: right;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .reset-btn {
+            margin-top: 15px;
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 6px;
+            color: #4b5563;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .reset-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .upload-btn {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: var(--secondary-gradient);
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .upload-btn:disabled {
+            background: #e5e7eb;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        input[type="file"] {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 2px dashed #e5e7eb;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #6366f1;
+        }
+
+        /* Custom file input styling */
+        input[type="file"]::-webkit-file-upload-button {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        input[type="file"]::-webkit-file-upload-button:hover {
+            opacity: 0.9;
+        }
+
+        .input-methods {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: #1e293b;
+            padding: 5px;
+            border-radius: 12px;
+            position: relative;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-method-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: #94a3b8;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+
+        .input-method-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+        .input-method-btn.active {
+            color: white;
+        }
+
+        .input-method-btn.active::before {
+            opacity: 1;
+        }
+
+        .input-method-btn:hover {
+            transform: translateY(-1px);
+            color: #e2e8f0;
+        }
+
+        .input-method-btn i {
+            font-size: 18px;
+        }
+
+        .input-method-btn.upload-btn i {
+            color: #818cf8;
+        }
+
+        .input-method-btn.camera-btn i {
+            color: #60a5fa;
+        }
+
+        .input-method-btn.active i {
+            color: white;
+        }
+
+        .webcam-container {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .webcam-container video {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .webcam-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .webcam-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: var(--secondary-gradient);
+            color: white;
+        }
+
+        .webcam-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .webcam-btn.capture {
+            background: var(--success-gradient);
+        }
+
+        .webcam-btn.capture:hover {
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .webcam-btn.stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .webcam-btn.stop:hover {
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .upload-container {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .upload-container.active {
+            display: block;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #e5e7eb;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-upload-area:hover {
+            border-color: #6366f1;
+            background: #f0f9ff;
+        }
+
+        .file-upload-area i {
+            font-size: 40px;
+            color: #6366f1;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-area p {
+            margin: 10px 0;
+            color: #4b5563;
+        }
+
+        .file-upload-area .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #6366f1;
+            display: none;
+        }
+
+        .file-upload-area input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-area input[type="file"]::-webkit-file-upload-button {
+            display: none;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #6366f1;
+            background: #f0f9ff;
+        }
+
+        .webcam-container.active {
+            display: block;
+        }
+
+        .credit {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .credit a {
+            color: #6366f1;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .credit a:hover {
+            color: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Signature Maker</h1>
+    <h2>Upload and Crop Your Image</h2>
+    
+    <div class="input-methods">
+        <button class="input-method-btn upload-btn active" onclick="switchInputMethod('upload')">
+            <i class="fas fa-upload"></i>
+            Upload Image
+        </button>
+        <button class="input-method-btn camera-btn" onclick="switchInputMethod('webcam')">
+            <i class="fas fa-camera"></i>
+            Use Camera
+        </button>
+    </div>
+
+    <div class="upload-container active" id="uploadContainer">
+        <div class="file-upload-area" id="fileUploadArea">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag and drop your image here</p>
+            <p>or</p>
+            <p>Click to browse files</p>
+            <p class="file-name" id="fileName"></p>
+            <input type="file" id="imageInput" accept="image/*">
+        </div>
+    </div>
+
+    <div class="webcam-container" id="webcamContainer">
+        <video id="webcam" autoplay playsinline></video>
+        <div class="webcam-controls">
+            <button class="webcam-btn capture" id="captureBtn">Capture</button>
+            <button class="webcam-btn stop" id="stopBtn" style="display: none;">Stop Camera</button>
+        </div>
+    </div>
+
+    <br><br>
+    <div class="image-container" id="imageContainer"></div>
+    <br>
+    <div class="loading" id="loading">Processing...</div>
+    <div class="preview-container" id="previewContainer">
+        <h3>Processed Image Preview</h3>
+        <img id="previewImage" src="" alt="Processed Image">
+        <div class="image-controls">
+            <div class="control-group">
+                <label>Brightness</label>
+                <div class="slider-container">
+                    <input type="range" class="slider" id="brightnessSlider" min="0" max="200" value="100">
+                    <span class="slider-value" id="brightnessValue">100%</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Contrast</label>
+                <div class="slider-container">
+                    <input type="range" class="slider" id="contrastSlider" min="0" max="200" value="100">
+                    <span class="slider-value" id="contrastValue">100%</span>
+                </div>
+            </div>
+            <button class="reset-btn" id="resetBtn">Reset Adjustments</button>
+        </div>
+    </div>
+    <a id="downloadBtn" class="download-button" download="no-bg.png" href="#">Download Image</a>
+    <div class="credit">
+        Developed by <a href="https://github.com/gvenkatesh-12" target="_blank">G Venkatesh</a>
+    </div>
+</div>
+
+<!-- Include the Cropper.js library from CDN -->
+<script src="https://unpkg.com/cropperjs@1.5.12/dist/cropper.min.js"></script>
+<script>
+    let cropper;
+    let croppedImageData = null;
+    let stream = null;
+
+    // Handle file input change
+    document.getElementById("imageInput").addEventListener("change", handleFileSelect);
+
+    // Switch between upload and webcam modes
+    function switchInputMethod(method) {
+        const uploadContainer = document.getElementById("uploadContainer");
+        const webcamContainer = document.getElementById("webcamContainer");
+        const uploadBtn = document.querySelector('.input-method-btn:first-child');
+        const webcamBtn = document.querySelector('.input-method-btn:last-child');
+
+        if (method === 'upload') {
+            uploadContainer.classList.add('active');
+            webcamContainer.classList.remove('active');
+            uploadBtn.classList.add('active');
+            webcamBtn.classList.remove('active');
+            stopWebcam();
+        } else {
+            uploadContainer.classList.remove('active');
+            webcamContainer.classList.add('active');
+            uploadBtn.classList.remove('active');
+            webcamBtn.classList.add('active');
+            startWebcam();
+        }
+    }
+
+    // Start webcam
+    async function startWebcam() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            const video = document.getElementById('webcam');
+            video.srcObject = stream;
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('stopBtn').style.display = 'block';
+        } catch (err) {
+            console.error('Error accessing webcam:', err);
+            alert('Could not access webcam. Please make sure you have granted camera permissions.');
+        }
+    }
+
+    // Stop webcam
+    function stopWebcam() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            const video = document.getElementById('webcam');
+            video.srcObject = null;
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'none';
+        }
+    }
+
+    // Capture image from webcam
+    document.getElementById('captureBtn').addEventListener('click', function() {
+        const video = document.getElementById('webcam');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        // Convert canvas to blob and handle it like a file upload
+        canvas.toBlob((blob) => {
+            const file = new File([blob], 'webcam-capture.jpg', { type: 'image/jpeg' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            document.getElementById('imageInput').files = dataTransfer.files;
+            handleFileSelect({ target: { files: [file] } });
+            stopWebcam();
+            switchInputMethod('upload');
+        }, 'image/jpeg');
+    });
+
+    // Stop button event listener
+    document.getElementById('stopBtn').addEventListener('click', function() {
+        stopWebcam();
+        switchInputMethod('upload');
+    });
+
+    // Handle file selection and initialize cropper
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const image = new Image();
+                image.src = e.target.result;
+
+                image.onload = function () {
+                    const imageContainer = document.getElementById("imageContainer");
+                    imageContainer.innerHTML = '';
+                    imageContainer.appendChild(image);
+
+                    if (cropper) {
+                        cropper.destroy();
+                    }
+
+                    cropper = new Cropper(image, {
+                        viewMode: 1,
+                        autoCropArea: 0.8,
+                        responsive: true,
+                        zoomable: true,
+                        scalable: true,
+                        movable: true,
+                        ready() {
+                            // Enable the upload button once the image is ready for cropping
+                            document.getElementById("uploadBtn").disabled = false;
+                        }
+                    });
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Handle image upload
+    async function uploadImage() {
+        document.getElementById("uploadBtn").disabled = true;
+        document.getElementById("loading").style.display = 'block';
+
+        const canvas = cropper.getCroppedCanvas();
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append("image", blob);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const imageUrl = await response.text();
+                    const previewContainer = document.getElementById("previewContainer");
+                    const previewImage = document.getElementById("previewImage");
+                    previewImage.src = imageUrl;
+                    previewContainer.style.display = 'block';
+                    document.getElementById("downloadBtn").href = imageUrl;
+                    document.getElementById("downloadBtn").style.display = 'inline-block';
+                    
+                    // Reset sliders to default values
+                    document.getElementById("brightnessSlider").value = 100;
+                    document.getElementById("contrastSlider").value = 100;
+                    document.getElementById("brightnessValue").textContent = "100%";
+                    document.getElementById("contrastValue").textContent = "100%";
+                    
+                    // Apply initial image adjustments
+                    applyImageAdjustments();
+                } else {
+                    alert('Failed to remove background.');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('An error occurred while processing the image.');
+            } finally {
+                document.getElementById("loading").style.display = 'none';
+            }
+        });
+    }
+
+    // Image adjustment functions
+    function applyImageAdjustments() {
+        const image = document.getElementById("previewImage");
+        const brightness = document.getElementById("brightnessSlider").value;
+        const contrast = document.getElementById("contrastSlider").value;
+        
+        image.style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+    }
+
+    // Add event listeners for sliders
+    document.getElementById("brightnessSlider").addEventListener("input", function() {
+        document.getElementById("brightnessValue").textContent = this.value + "%";
+        applyImageAdjustments();
+    });
+
+    document.getElementById("contrastSlider").addEventListener("input", function() {
+        document.getElementById("contrastValue").textContent = this.value + "%";
+        applyImageAdjustments();
+    });
+
+    // Reset button functionality
+    document.getElementById("resetBtn").addEventListener("click", function() {
+        document.getElementById("brightnessSlider").value = 100;
+        document.getElementById("contrastSlider").value = 100;
+        document.getElementById("brightnessValue").textContent = "100%";
+        document.getElementById("contrastValue").textContent = "100%";
+        applyImageAdjustments();
+    });
+
+    // Modify download functionality to include adjustments
+    document.getElementById("downloadBtn").addEventListener("click", function(e) {
+        e.preventDefault();
+        
+        const image = document.getElementById("previewImage");
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas dimensions to match image
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        
+        // Apply the current filter to the canvas
+        ctx.filter = image.style.filter;
+        
+        // Draw the image with the filter
+        ctx.drawImage(image, 0, 0);
+        
+        // Convert to blob and download
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'no-bg.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    });
+
+    // Add drag and drop functionality
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileName = document.getElementById('fileName');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) {
+        fileUploadArea.classList.add('dragover');
+    }
+
+    function unhighlight(e) {
+        fileUploadArea.classList.remove('dragover');
+    }
+
+    fileUploadArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        document.getElementById('imageInput').files = files;
+        handleFileSelect({ target: { files: files } });
+    }
+
+    // Update file name display
+    document.getElementById('imageInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            fileName.textContent = file.name;
+            fileName.style.display = 'block';
+        } else {
+            fileName.style.display = 'none';
+        }
+    });
+
+    // Add upload button back to the UI
+    const imageContainer = document.getElementById("imageContainer");
+    const uploadBtn = document.createElement('button');
+    uploadBtn.id = 'uploadBtn';
+    uploadBtn.className = 'upload-btn';
+    uploadBtn.disabled = true;
+    uploadBtn.onclick = uploadImage;
+    uploadBtn.innerHTML = 'Process Image';
+    imageContainer.parentNode.insertBefore(uploadBtn, imageContainer.nextSibling);
+</script>
+
+</body>
+</html>

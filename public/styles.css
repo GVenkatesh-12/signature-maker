@@ -1,0 +1,28 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f5f5f5;
+  }
+  
+  .container {
+    text-align: center;
+  }
+  
+  form input[type="file"] {
+    margin: 10px 0;
+  }
+  
+  #resultContainer {
+    margin-top: 20px;
+  }
+  
+  #resultImage {
+    max-width: 100%;
+    height: auto;
+    margin-top: 20px;
+  }
+  
